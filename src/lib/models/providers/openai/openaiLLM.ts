@@ -1,6 +1,5 @@
 import OpenAI from 'openai';
 import BaseLLM from '../../base/llm';
-import { zodTextFormat, zodResponseFormat } from 'openai/helpers/zod';
 import {
   GenerateObjectInput,
   GenerateOptions,
@@ -125,6 +124,15 @@ class OpenAILLM extends BaseLLM<OpenAIConfig> {
     throw new Error('No response from OpenAI');
   }
 
+  private safeParseArgs(args: string): any {
+    if (!args || !args.trim()) return {};
+    try {
+      return parse(args);
+    } catch {
+      return {};
+    }
+  }
+
   async *streamText(
     input: GenerateTextInput,
   ): AsyncGenerator<StreamTextOutput> {
@@ -176,13 +184,13 @@ class OpenAILLM extends BaseLLM<OpenAIConfig> {
                   arguments: tc.function?.arguments || '',
                 };
                 recievedToolCalls.push(call);
-                return { ...call, arguments: parse(call.arguments || '{}') };
+                return { ...call, arguments: this.safeParseArgs(call.arguments) };
               } else {
                 const existingCall = recievedToolCalls[tc.index];
                 existingCall.arguments += tc.function?.arguments || '';
                 return {
                   ...existingCall,
-                  arguments: parse(existingCall.arguments),
+                  arguments: this.safeParseArgs(existingCall.arguments),
                 };
               }
             }) || [],
@@ -196,7 +204,7 @@ class OpenAILLM extends BaseLLM<OpenAIConfig> {
   }
 
   async generateObject<T>(input: GenerateObjectInput): Promise<T> {
-    const response = await this.openAIClient.chat.completions.parse({
+    const response = await this.openAIClient.chat.completions.create({
       messages: this.convertToOpenAIMessages(input.messages),
       model: this.config.model,
       temperature:
@@ -210,7 +218,7 @@ class OpenAILLM extends BaseLLM<OpenAIConfig> {
         this.config.options?.frequencyPenalty,
       presence_penalty:
         input.options?.presencePenalty ?? this.config.options?.presencePenalty,
-      response_format: zodResponseFormat(input.schema, 'object'),
+      response_format: { type: 'json_object' },
     });
 
     if (response.choices && response.choices.length > 0) {
@@ -233,9 +241,9 @@ class OpenAILLM extends BaseLLM<OpenAIConfig> {
   async *streamObject<T>(input: GenerateObjectInput): AsyncGenerator<T> {
     let recievedObj: string = '';
 
-    const stream = this.openAIClient.responses.stream({
+    const stream = await this.openAIClient.chat.completions.create({
       model: this.config.model,
-      input: input.messages,
+      messages: this.convertToOpenAIMessages(input.messages),
       temperature:
         input.options?.temperature ?? this.config.options?.temperature ?? 1.0,
       top_p: input.options?.topP ?? this.config.options?.topP,
@@ -247,26 +255,30 @@ class OpenAILLM extends BaseLLM<OpenAIConfig> {
         this.config.options?.frequencyPenalty,
       presence_penalty:
         input.options?.presencePenalty ?? this.config.options?.presencePenalty,
-      text: {
-        format: zodTextFormat(input.schema, 'object'),
-      },
+      response_format: { type: 'json_object' },
+      stream: true,
     });
 
     for await (const chunk of stream) {
-      if (chunk.type === 'response.output_text.delta' && chunk.delta) {
-        recievedObj += chunk.delta;
+      if (chunk.choices && chunk.choices.length > 0) {
+        const delta = chunk.choices[0].delta;
+        if (delta?.content) {
+          recievedObj += delta.content;
 
-        try {
-          yield parse(stripMarkdownFences(recievedObj)) as T;
-        } catch (err) {
-          console.log('Error parsing partial object from OpenAI:', err);
-          yield {} as T;
+          try {
+            yield parse(stripMarkdownFences(recievedObj)) as T;
+          } catch (err) {
+            console.log('Error parsing partial object from OpenAI:', err);
+            yield {} as T;
+          }
         }
-      } else if (chunk.type === 'response.output_text.done' && chunk.text) {
-        try {
-          yield parse(stripMarkdownFences(chunk.text)) as T;
-        } catch (err) {
-          throw new Error(`Error parsing response from OpenAI: ${err}`);
+
+        if (chunk.choices[0].finish_reason === 'stop') {
+          try {
+            yield parse(stripMarkdownFences(recievedObj)) as T;
+          } catch (err) {
+            throw new Error(`Error parsing response from OpenAI: ${err}`);
+          }
         }
       }
     }

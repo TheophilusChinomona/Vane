@@ -273,27 +273,37 @@ export const executeSearch = async (input: {
 
     const pickerSchema = z.object({
       picked_indices: z
-        .array(z.number())
+        .array(z.coerce.number())
         .describe(
           'The array of the picked indices to be scraped for answering',
         ),
     });
 
-    const pickerResponse = await input.llm.generateObject<typeof pickerSchema>({
-      schema: pickerSchema,
-      messages: [
-        {
-          role: 'system',
-          content: pickerPrompt,
-        },
-        {
-          role: 'user',
-          content: `<queries>${input.queries.join(', ')}</queries>\n<search_results>${searchResults.map((result, index) => `<result indice=${index}>${JSON.stringify(result)}</result>`).join('\n')}</search_results>`,
-        },
-      ],
-    });
+    let pickedIndices: number[] = [];
+    try {
+      const pickerResponse = await input.llm.generateObject<typeof pickerSchema>({
+        schema: pickerSchema,
+        messages: [
+          {
+            role: 'system',
+            content: pickerPrompt,
+          },
+          {
+            role: 'user',
+            content: `<queries>${input.queries.join(', ')}</queries>\n<search_results>${searchResults.map((result, index) => `<result indice=${index}>${JSON.stringify(result)}</result>`).join('\n')}</search_results>`,
+          },
+        ],
+      });
+      pickedIndices = pickerResponse.picked_indices.slice(0, 3);
+    } catch (err) {
+      console.log('Picker failed, falling back to first 3 results:', err);
+      pickedIndices = searchResults.slice(0, 3).map((_, i) => i);
+    }
 
-    const pickedIndices = pickerResponse.picked_indices.slice(0, 3);
+    if (pickedIndices.length === 0) {
+      pickedIndices = searchResults.slice(0, 3).map((_, i) => i);
+    }
+
     const pickedResults = pickedIndices
       .map((i) => searchResults[i])
       .filter((r) => r !== undefined);
