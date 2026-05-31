@@ -65,7 +65,7 @@ class Researcher {
         input.config.fileIds,
       );
 
-      const actionStream = input.config.llm.streamText({
+      const actionStream = input.config.models.for('reasoning').streamText({
         messages: [
           {
             role: 'system',
@@ -162,7 +162,7 @@ class Researcher {
       });
 
       const actionResults = await ActionRegistry.executeAll(finalToolCalls, {
-        llm: input.config.llm,
+        llm: input.config.models.for('utility'),
         embedding: input.config.embedding,
         session: session,
         researchBlockId: researchBlockId,

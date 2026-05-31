@@ -25,14 +25,14 @@ class APISearchAgent {
       chatHistory: input.chatHistory,
       enabledSources: input.config.sources,
       query: input.followUp,
-      llm: input.config.llm,
+      llm: input.config.models.for('utility'),
     });
 
     const widgetPromise = WidgetExecutor.executeAll({
       classification,
       chatHistory: input.chatHistory,
       followUp: input.followUp,
-      llm: input.config.llm,
+      llm: input.config.models.for('utility'),
     }).catch((err) => {
       console.error(`Error executing widgets: ${err}`);
       return [];
@@ -88,7 +88,7 @@ class APISearchAgent {
       input.config.mode,
     );
 
-    const answerStream = input.config.llm.streamText({
+    const answerStream = input.config.models.for('answer').streamText({
       messages: [
         {
           role: 'system',

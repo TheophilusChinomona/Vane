@@ -6,10 +6,16 @@ import { ChatTurnMessage, Chunk } from '@/lib/types';
 
 export type SearchSources = 'web' | 'discussions' | 'academic';
 
+export type ModelRole = 'reasoning' | 'utility' | 'answer';
+
+export interface ModelRouter {
+  for(role: ModelRole): BaseLLM<any>;
+}
+
 export type SearchAgentConfig = {
   sources: SearchSources[];
   fileIds: string[];
-  llm: BaseLLM<any>;
+  models: ModelRouter;
   embedding: BaseEmbedding<any>;
   mode: 'speed' | 'balanced' | 'quality';
   systemInstructions: string;

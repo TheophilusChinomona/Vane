@@ -1,9 +1,11 @@
 import ModelRegistry from '@/lib/models/registry';
 import { ModelWithProvider } from '@/lib/models/types';
+import FallbackLLM from '@/lib/models/fallbackLLM';
 import SessionManager from '@/lib/session';
 import { ChatTurnMessage } from '@/lib/types';
-import { SearchSources } from '@/lib/agents/search/types';
+import { ModelRouter, SearchSources } from '@/lib/agents/search/types';
 import APISearchAgent from '@/lib/agents/search/api';
+import BaseLLM from '@/lib/models/base/llm';
 
 interface ChatRequestBody {
   optimizationMode: 'speed' | 'balanced' | 'quality';
@@ -14,6 +16,8 @@ interface ChatRequestBody {
   history: Array<[string, string]>;
   stream?: boolean;
   systemInstructions?: string;
+  fallbackModels?: ModelWithProvider[];
+  roleModels?: Partial<Record<'reasoning' | 'utility' | 'answer', ModelWithProvider>>;
 }
 
 export const POST = async (req: Request) => {
@@ -33,13 +37,42 @@ export const POST = async (req: Request) => {
 
     const registry = new ModelRegistry();
 
-    const [llm, embeddings] = await Promise.all([
-      registry.loadChatModel(body.chatModel.providerId, body.chatModel.key),
-      registry.loadEmbeddingModel(
-        body.embeddingModel.providerId,
-        body.embeddingModel.key,
-      ),
+    const embeddings = await registry.loadEmbeddingModel(
+      body.embeddingModel.providerId,
+      body.embeddingModel.key,
+    );
+
+    const resolveModel = async (override?: { providerId: string; key: string }) => {
+      const base = await registry.loadChatModel(
+        (override ?? body.chatModel).providerId,
+        (override ?? body.chatModel).key,
+      );
+      const fbs = await Promise.all(
+        (body.fallbackModels ?? []).map(f => registry.loadChatModel(f.providerId, f.key))
+      );
+      return fbs.length > 0 ? new FallbackLLM([base, ...fbs]) : base;
+    };
+
+    const modelCache: Partial<Record<string, BaseLLM<any>>> = {};
+    const models: ModelRouter = {
+      for: (role) => {
+        if (!modelCache[role]) {
+          throw new Error(`Model for role "${role}" not yet resolved. Call resolveModels() first.`);
+        }
+        return modelCache[role]!;
+      },
+    };
+
+    // Pre-resolve all roles
+    const roleOverrides = body.roleModels ?? {};
+    const [reasoningModel, utilityModel, answerModel] = await Promise.all([
+      resolveModel(roleOverrides.reasoning),
+      resolveModel(roleOverrides.utility),
+      resolveModel(roleOverrides.answer),
     ]);
+    modelCache['reasoning'] = reasoningModel;
+    modelCache['utility'] = utilityModel;
+    modelCache['answer'] = answerModel;
 
     const history: ChatTurnMessage[] = body.history.map((msg) => {
       return msg[0] === 'human'
@@ -55,7 +88,7 @@ export const POST = async (req: Request) => {
       chatHistory: history,
       config: {
         embedding: embeddings,
-        llm: llm,
+        models,
         sources: body.sources,
         mode: body.optimizationMode,
         fileIds: [],
