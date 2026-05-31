@@ -8,6 +8,7 @@ const eslintConfig = [
   {
     rules: {
       '@next/next/no-img-element': 'off',
+      '@next/next/no-html-link-for-pages': 'warn',
       'react-hooks/set-state-in-effect': 'warn',
     },
   },
