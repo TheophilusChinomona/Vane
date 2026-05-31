@@ -7,6 +7,20 @@ import { WidgetExecutor } from './widgets';
 
 class APISearchAgent {
   async searchAsync(session: SessionManager, input: SearchAgentInput) {
+    try {
+      await this._searchAsync(session, input);
+    } catch (err) {
+      console.error('APISearchAgent error:', err);
+      session.emit('error', {
+        data:
+          err instanceof Error
+            ? err.message
+            : 'An unknown error occurred during search',
+      });
+    }
+  }
+
+  private async _searchAsync(session: SessionManager, input: SearchAgentInput) {
     const classification = await classify({
       chatHistory: input.chatHistory,
       enabledSources: input.config.sources,
@@ -100,3 +114,4 @@ class APISearchAgent {
 }
 
 export default APISearchAgent;
+

@@ -3,6 +3,37 @@ import { ResearchAction } from '../../types';
 import { Chunk, ReadingResearchBlock } from '@/lib/types';
 import Scraper from '@/lib/scraper';
 import { splitText } from '@/lib/utils/splitText';
+import dns from 'dns/promises';
+
+function isPrivateIP(ip: string): boolean {
+  const parts = ip.split('.').map(Number);
+  if (parts[0] === 10) return true;
+  if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+  if (parts[0] === 192 && parts[1] === 168) return true;
+  if (parts[0] === 127) return true;
+  if (parts[0] === 0) return true;
+  if (parts[0] === 169 && parts[1] === 254) return true;
+  if (ip === '::1' || ip === '::' || ip.startsWith('fe80:') || ip.startsWith('fc') || ip.startsWith('fd')) return true;
+  return false;
+}
+
+async function isUrlSafe(urlStr: string): Promise<boolean> {
+  try {
+    const parsed = new URL(urlStr);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return false;
+
+    const hostname = parsed.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') return false;
+    if (isPrivateIP(hostname)) return false;
+
+    const { address } = await dns.lookup(hostname);
+    if (isPrivateIP(address)) return false;
+
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 const extractorPrompt = `
                   Assistant is an AI information extractor. Assistant will be shared with scraped information from a website along with the queries used to retrieve that information. Assistant's task is to extract relevant facts from the scraped data to answer the queries.
@@ -65,7 +96,27 @@ const scrapeURLAction: ResearchAction<typeof schema> = {
   getDescription: () => actionDescription,
   enabled: (_) => true,
   execute: async (params, additionalConfig) => {
-    params.urls = params.urls.slice(0, 3);
+    params.urls = (params.urls ?? []).slice(0, 3);
+
+    const safeUrls: string[] = [];
+    for (const url of params.urls) {
+      if (await isUrlSafe(url)) {
+        safeUrls.push(url);
+      } else {
+        console.warn(`Blocked scrape of private/local URL: ${url}`);
+      }
+    }
+    params.urls = safeUrls ?? [];
+
+    if (params.urls.length === 0) {
+      return {
+        type: 'search_results',
+        results: [{
+          content: 'All provided URLs were blocked (private/local addresses are not allowed).',
+          metadata: { url: '', title: 'Blocked' },
+        }],
+      };
+    }
 
     let readingBlockId = crypto.randomUUID();
     let readingEmitted = false;
