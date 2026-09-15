@@ -6,9 +6,10 @@ import SessionManager from '@/lib/session';
 import { ChatTurnMessage } from '@/lib/types';
 import { SearchSources } from '@/lib/agents/search/types';
 import db from '@/lib/db';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { chats } from '@/lib/db/schema';
 import UploadManager from '@/lib/uploads/manager';
+import { getSession, unauthorizedResponse } from '@/lib/auth-session';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -73,16 +74,18 @@ const ensureChatExists = async (input: {
   sources: SearchSources[];
   query: string;
   fileIds: string[];
+  userId: string;
 }) => {
   try {
     const exists = await db.query.chats
       .findFirst({
-        where: eq(chats.id, input.id),
+        where: and(eq(chats.id, input.id), eq(chats.userId, input.userId)),
       })
       .execute();
 
     if (!exists) {
       await db.insert(chats).values({
+        userId: input.userId,
         id: input.id,
         createdAt: new Date().toISOString(),
         sources: input.sources,
@@ -101,6 +104,8 @@ const ensureChatExists = async (input: {
 };
 
 export const POST = async (req: Request) => {
+  const authSession = await getSession();
+  if (!authSession) return unauthorizedResponse();
   try {
     const reqBody = (await req.json()) as Body;
 
@@ -229,7 +234,8 @@ export const POST = async (req: Request) => {
       id: body.message.chatId,
       sources: body.sources as SearchSources[],
       fileIds: body.files,
-      query: body.message.content,
+      query: message.content,
+      userId: authSession.user.id,
     });
 
     req.signal.addEventListener('abort', () => {

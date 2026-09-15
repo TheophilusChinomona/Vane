@@ -21,6 +21,8 @@ import {
   DialogTitle,
 } from '@headlessui/react';
 import SettingsButton from './Settings/SettingsButton';
+import { signOut } from '@/lib/auth-client';
+import { useRouter } from 'next/navigation';
 
 const VerticalIconContainer = ({ children }: { children: ReactNode }) => {
   return <div className="flex flex-col items-center w-full">{children}</div>;
@@ -28,6 +30,7 @@ const VerticalIconContainer = ({ children }: { children: ReactNode }) => {
 
 const Sidebar = ({ children }: { children: React.ReactNode }) => {
   const segments = useSelectedLayoutSegments();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState<boolean>(true);
 
   const navLinks = [
@@ -102,6 +105,7 @@ const Sidebar = ({ children }: { children: React.ReactNode }) => {
           </VerticalIconContainer>
 
           <SettingsButton />
+          <button type="button" onClick={async () => { await signOut(); router.push('/login'); router.refresh(); }} className="text-xs text-black/60 dark:text-white/60 hover:underline">Log out</button>
         </div>
       </div>
 
