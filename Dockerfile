@@ -34,13 +34,15 @@ COPY drizzle ./drizzle
 
 RUN mkdir /home/vane/uploads
 
-# Install the browser binary only. Do NOT re-resolve dependencies in this
-# stage: the standalone output already carries the tree pinned by yarn.lock in
-# the builder, and `yarn add` re-resolves ranges (for example `next@^16.0.7`),
-# so the server would run against a different Next version than it was built
-# with and crash during startup config finalization.
+# Provide playwright from the builder's lockfile-pinned node_modules. The
+# standalone tracer does not include it, and running `yarn add playwright` here
+# would re-resolve every range in the standalone package.json (upgrading
+# `next` past the version the app was built with) rather than only adding the
+# missing package.
+COPY --from=builder /home/vane/node_modules/playwright ./node_modules/playwright
+COPY --from=builder /home/vane/node_modules/playwright-core ./node_modules/playwright-core
 RUN test -f node_modules/playwright/cli.js \
-    || (echo "playwright missing from standalone output" >&2; exit 1)
+    || (echo "playwright missing from builder node_modules" >&2; exit 1)
 RUN node node_modules/playwright/cli.js install --with-deps --only-shell chromium
 
 RUN useradd --shell /bin/bash --system \
