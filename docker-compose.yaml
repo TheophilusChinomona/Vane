@@ -8,6 +8,11 @@ services:
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL}
       NODE_ENV: production
+      # Next's standalone server binds to $HOSTNAME when set. Docker sets
+      # HOSTNAME to the container id, which resolves to only one of the two
+      # attached networks, so the edge proxy got connection-refused (502) on
+      # the dokploy-network address. Bind every interface instead.
+      HOSTNAME: 0.0.0.0
     volumes:
       - data:/home/vane/data
     restart: unless-stopped
