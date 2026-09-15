@@ -1,5 +1,6 @@
 import 'server-only';
 import { pool } from '@/lib/db';
+import { shouldPromoteFirstUser } from './auth-role-policy';
 
 export async function assignInitialRole(userId: string) {
   const client = await pool.connect();
@@ -9,7 +10,7 @@ export async function assignInitialRole(userId: string) {
     const result = await client.query<{ count: string }>(
       `SELECT COUNT(*)::text AS count FROM "user" WHERE role = 'admin'`,
     );
-    if (result.rows[0]?.count === '0') {
+    if (shouldPromoteFirstUser(Number(result.rows[0]?.count ?? 0))) {
       await client.query(`UPDATE "user" SET role = 'admin' WHERE id = $1`, [userId]);
     }
     await client.query('COMMIT');

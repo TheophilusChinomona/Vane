@@ -1,3 +1,4 @@
+import { requireApiUser } from '@/lib/auth-session';
 import generateSuggestions from '@/lib/agents/suggestions';
 import ModelRegistry from '@/lib/models/registry';
 import { ModelWithProvider } from '@/lib/models/types';
@@ -8,6 +9,8 @@ interface SuggestionsGenerationBody {
 }
 
 export const POST = async (req: Request) => {
+  const authenticatedUser = await requireApiUser();
+  if (authenticatedUser instanceof Response) return authenticatedUser;
   try {
     const body: SuggestionsGenerationBody = await req.json();
 

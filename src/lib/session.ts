@@ -11,29 +11,32 @@ if (process.env.NODE_ENV !== 'production') {
 class SessionManager {
   private static sessions: Map<string, SessionManager> = sessions;
   readonly id: string;
+  readonly ownerId?: string;
   private blocks = new Map<string, Block>();
   private events: { event: string; data: any }[] = [];
   private emitter = new EventEmitter();
   private TTL_MS = 30 * 60 * 1000;
 
-  constructor(id?: string) {
+  constructor(id?: string, ownerId?: string) {
     this.id = id ?? crypto.randomUUID();
+    this.ownerId = ownerId;
 
     setTimeout(() => {
       SessionManager.sessions.delete(this.id);
     }, this.TTL_MS);
   }
 
-  static getSession(id: string): SessionManager | undefined {
-    return this.sessions.get(id);
+  static getSession(id: string, ownerId?: string): SessionManager | undefined {
+    const session = this.sessions.get(id);
+    return session && (!ownerId || session.ownerId === ownerId) ? session : undefined;
   }
 
   static getAllSessions(): SessionManager[] {
     return Array.from(this.sessions.values());
   }
 
-  static createSession(): SessionManager {
-    const session = new SessionManager();
+  static createSession(ownerId?: string): SessionManager {
+    const session = new SessionManager(undefined, ownerId);
     this.sessions.set(session.id, session);
     return session;
   }

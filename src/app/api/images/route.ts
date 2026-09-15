@@ -1,3 +1,4 @@
+import { requireApiUser } from '@/lib/auth-session';
 import searchImages from '@/lib/agents/media/image';
 import ModelRegistry from '@/lib/models/registry';
 import { ModelWithProvider } from '@/lib/models/types';
@@ -9,6 +10,8 @@ interface ImageSearchBody {
 }
 
 export const POST = async (req: Request) => {
+  const authenticatedUser = await requireApiUser();
+  if (authenticatedUser instanceof Response) return authenticatedUser;
   try {
     const body: ImageSearchBody = await req.json();
 

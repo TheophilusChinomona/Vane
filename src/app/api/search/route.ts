@@ -1,3 +1,4 @@
+import { requireApiUser } from '@/lib/auth-session';
 import ModelRegistry from '@/lib/models/registry';
 import { ModelWithProvider } from '@/lib/models/types';
 import SessionManager from '@/lib/session';
@@ -17,6 +18,8 @@ interface ChatRequestBody {
 }
 
 export const POST = async (req: Request) => {
+  const authenticatedUser = await requireApiUser();
+  if (authenticatedUser instanceof Response) return authenticatedUser;
   try {
     const body: ChatRequestBody = await req.json();
 
@@ -47,7 +50,7 @@ export const POST = async (req: Request) => {
         : { role: 'assistant', content: msg[1] };
     });
 
-    const session = SessionManager.createSession();
+    const session = SessionManager.createSession(authenticatedUser.id);
 
     const agent = new APISearchAgent();
 

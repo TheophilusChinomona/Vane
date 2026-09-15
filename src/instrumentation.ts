@@ -1,8 +1,10 @@
-import { migrate } from './lib/db/migrate';
-
 export const register = async () => {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     try {
+      const { getAuthConfig, getDatabaseUrl } = await import('./lib/env');
+      getDatabaseUrl();
+      getAuthConfig();
+      const { migrate } = await import('./lib/db/migrate');
       await migrate();
       console.log('Database migrations completed successfully');
     } catch (error) {

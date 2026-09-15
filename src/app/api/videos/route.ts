@@ -1,3 +1,4 @@
+import { requireApiUser } from '@/lib/auth-session';
 import handleVideoSearch from '@/lib/agents/media/video';
 import ModelRegistry from '@/lib/models/registry';
 import { ModelWithProvider } from '@/lib/models/types';
@@ -9,6 +10,8 @@ interface VideoSearchBody {
 }
 
 export const POST = async (req: Request) => {
+  const authenticatedUser = await requireApiUser();
+  if (authenticatedUser instanceof Response) return authenticatedUser;
   try {
     const body: VideoSearchBody = await req.json();
 

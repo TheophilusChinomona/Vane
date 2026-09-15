@@ -1,3 +1,4 @@
+import { requireApiUser } from '@/lib/auth-session';
 import { searchSearxng } from '@/lib/searxng';
 
 const websitesForTopic = {
@@ -26,6 +27,8 @@ const websitesForTopic = {
 type Topic = keyof typeof websitesForTopic;
 
 export const GET = async (req: Request) => {
+  const authenticatedUser = await requireApiUser();
+  if (authenticatedUser instanceof Response) return authenticatedUser;
   try {
     const params = new URL(req.url).searchParams;
 
