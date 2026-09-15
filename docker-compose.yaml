@@ -3,12 +3,21 @@ services:
     image: itzcrazykns1337/vane:latest
     build:
       context: .
-    ports:
-      - '3000:3000'
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL}
+      NODE_ENV: production
     volumes:
       - data:/home/vane/data
     restart: unless-stopped
+    networks:
+      - dokploy-network
 
 volumes:
   data:
     name: 'vane-data'
+
+networks:
+  dokploy-network:
+    external: true
