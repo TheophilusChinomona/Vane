@@ -34,8 +34,14 @@ COPY drizzle ./drizzle
 
 RUN mkdir /home/vane/uploads
 
-RUN yarn add playwright
-RUN yarn playwright install --with-deps --only-shell chromium
+# Install the browser binary only. Do NOT re-resolve dependencies in this
+# stage: the standalone output already carries the tree pinned by yarn.lock in
+# the builder, and `yarn add` re-resolves ranges (for example `next@^16.0.7`),
+# so the server would run against a different Next version than it was built
+# with and crash during startup config finalization.
+RUN test -f node_modules/playwright/cli.js \
+    || (echo "playwright missing from standalone output" >&2; exit 1)
+RUN node node_modules/playwright/cli.js install --with-deps --only-shell chromium
 
 RUN useradd --shell /bin/bash --system \
     --home-dir "/usr/local/searxng" \
