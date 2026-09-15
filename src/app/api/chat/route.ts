@@ -6,9 +6,10 @@ import SessionManager from '@/lib/session';
 import { ChatTurnMessage } from '@/lib/types';
 import { SearchSources } from '@/lib/agents/search/types';
 import db from '@/lib/db';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { chats } from '@/lib/db/schema';
 import UploadManager from '@/lib/uploads/manager';
+import { requireApiUser } from '@/lib/auth-session';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -73,16 +74,21 @@ const ensureChatExists = async (input: {
   sources: SearchSources[];
   query: string;
   fileIds: string[];
-}) => {
+  userId: string;
+}): Promise<boolean> => {
   try {
     const exists = await db.query.chats
       .findFirst({
-        where: eq(chats.id, input.id),
+        where: and(eq(chats.id, input.id), eq(chats.userId, input.userId)),
       })
       .execute();
 
-    if (!exists) {
+    if (exists) return true;
+    const anyOwner = await db.query.chats.findFirst({ where: eq(chats.id, input.id) });
+    if (anyOwner) return false;
+    {
       await db.insert(chats).values({
+        userId: input.userId,
         id: input.id,
         createdAt: new Date().toISOString(),
         sources: input.sources,
@@ -95,15 +101,18 @@ const ensureChatExists = async (input: {
         }),
       });
     }
+    return true;
   } catch (err) {
     console.error('Failed to check/save chat:', err);
+    return false;
   }
 };
 
 export const POST = async (req: Request) => {
+  const authenticatedUser = await requireApiUser();
+  if (authenticatedUser instanceof Response) return authenticatedUser;
   try {
     const reqBody = (await req.json()) as Body;
-
     const parseBody = safeValidateBody(reqBody);
 
     if (!parseBody.success) {
@@ -124,6 +133,15 @@ export const POST = async (req: Request) => {
         { status: 400 },
       );
     }
+
+    const chatReady = await ensureChatExists({
+      id: body.message.chatId,
+      sources: body.sources as SearchSources[],
+      fileIds: body.files,
+      query: message.content,
+      userId: authenticatedUser.id,
+    });
+    if (!chatReady) return Response.json({ message: 'Chat not found' }, { status: 404 });
 
     const registry = new ModelRegistry();
 
@@ -150,7 +168,7 @@ export const POST = async (req: Request) => {
     });
 
     const agent = new SearchAgent();
-    const session = SessionManager.createSession();
+    const session = SessionManager.createSession(authenticatedUser.id);
 
     const responseStream = new TransformStream();
     const writer = responseStream.writable.getWriter();
@@ -225,12 +243,6 @@ export const POST = async (req: Request) => {
       },
     });
 
-    ensureChatExists({
-      id: body.message.chatId,
-      sources: body.sources as SearchSources[],
-      fileIds: body.files,
-      query: body.message.content,
-    });
 
     req.signal.addEventListener('abort', () => {
       disconnect();

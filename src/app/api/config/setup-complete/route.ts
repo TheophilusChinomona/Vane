@@ -1,7 +1,10 @@
+import { requireApiUser } from '@/lib/auth-session';
 import configManager from '@/lib/config';
 import { NextRequest } from 'next/server';
 
 export const POST = async (req: NextRequest) => {
+  const authenticatedUser = await requireApiUser();
+  if (authenticatedUser instanceof Response) return authenticatedUser;
   try {
     configManager.markSetupComplete();
 

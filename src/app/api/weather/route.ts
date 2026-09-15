@@ -1,4 +1,7 @@
+import { requireApiUser } from '@/lib/auth-session';
 export const POST = async (req: Request) => {
+  const authenticatedUser = await requireApiUser();
+  if (authenticatedUser instanceof Response) return authenticatedUser;
   try {
     const body: {
       lat: number;

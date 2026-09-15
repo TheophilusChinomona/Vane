@@ -1,8 +1,11 @@
+import { requireApiUser } from '@/lib/auth-session';
 import { NextResponse } from 'next/server';
 import ModelRegistry from '@/lib/models/registry';
 import UploadManager from '@/lib/uploads/manager';
 
 export async function POST(req: Request) {
+  const authenticatedUser = await requireApiUser();
+  if (authenticatedUser instanceof Response) return authenticatedUser;
   try {
     const formData = await req.formData();
 

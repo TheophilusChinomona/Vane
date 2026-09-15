@@ -1,13 +1,16 @@
+import { requireApiUser } from '@/lib/auth-session';
 import SessionManager from '@/lib/session';
 
 export const POST = async (
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) => {
+  const authenticatedUser = await requireApiUser();
+  if (authenticatedUser instanceof Response) return authenticatedUser;
   try {
     const { id } = await params;
 
-    const session = SessionManager.getSession(id);
+    const session = SessionManager.getSession(id, authenticatedUser.id);
 
     if (!session) {
       return Response.json({ message: 'Session not found' }, { status: 404 });

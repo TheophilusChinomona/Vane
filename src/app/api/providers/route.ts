@@ -1,7 +1,10 @@
+import { requireApiUser } from '@/lib/auth-session';
 import ModelRegistry from '@/lib/models/registry';
 import { NextRequest } from 'next/server';
 
 export const GET = async (req: Request) => {
+  const authenticatedUser = await requireApiUser();
+  if (authenticatedUser instanceof Response) return authenticatedUser;
   try {
     const registry = new ModelRegistry();
 
@@ -33,6 +36,8 @@ export const GET = async (req: Request) => {
 };
 
 export const POST = async (req: NextRequest) => {
+  const authenticatedUser = await requireApiUser();
+  if (authenticatedUser instanceof Response) return authenticatedUser;
   try {
     const body = await req.json();
     const { type, name, config } = body;
