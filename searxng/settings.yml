@@ -14,4 +14,6 @@ server:
 
 engines:
   - name: wolframalpha
-    disabled: false
+    disabled: true
+  - name: duckduckgo
+    disabled: true
