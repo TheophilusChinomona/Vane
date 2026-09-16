@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { unauthorizedResponse } from '../src/lib/auth-response';
 import { ownsResource } from '../src/lib/authorization';
 import { isAdminRole, shouldPromoteFirstUser } from '../src/lib/auth-role-policy';
+import { isInvitationUsable, normalizeInviteEmail } from '../src/lib/invitations/policy';
 
 describe('authorization boundaries', () => {
   it('returns 401 for an anonymous API request', async () => {
@@ -29,5 +30,15 @@ describe('instance configuration policy', () => {
     expect(isAdminRole('admin')).toBe(true);
     expect(isAdminRole('user')).toBe(false);
     expect(isAdminRole(undefined)).toBe(false);
+  });
+});
+
+describe('invitation policy', () => {
+  it('normalizes invite emails and rejects used or expired invites', () => {
+    expect(normalizeInviteEmail('  Theo@Example.COM ')).toBe('theo@example.com');
+    expect(isInvitationUsable({ usedAt: null, revokedAt: null, expiresAt: new Date(Date.now() + 1000) })).toBe(true);
+    expect(isInvitationUsable({ usedAt: new Date(), revokedAt: null, expiresAt: new Date(Date.now() + 1000) })).toBe(false);
+    expect(isInvitationUsable({ usedAt: null, revokedAt: new Date(), expiresAt: new Date(Date.now() + 1000) })).toBe(false);
+    expect(isInvitationUsable({ usedAt: null, revokedAt: null, expiresAt: new Date(Date.now() - 1000) })).toBe(false);
   });
 });

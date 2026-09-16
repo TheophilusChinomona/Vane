@@ -39,5 +39,16 @@ export const messages = pgTable('messages', {
   responseBlocks: jsonb('responseBlocks').$type<Block[]>().notNull().default(sql`'[]'::jsonb`), status: text('status', { enum: ['answering', 'completed', 'error'] }).notNull().default('answering'),
 }, (t) => [index('messages_chat_id_idx').on(t.chatId)]);
 
+export const invitations = pgTable('invitations', {
+  id: text('id').primaryKey(),
+  email: text('email').notNull(),
+  tokenHash: text('token_hash').notNull().unique(),
+  createdBy: text('created_by').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  expiresAt: timestamp('expires_at').notNull(),
+  usedAt: timestamp('used_at'),
+  revokedAt: timestamp('revoked_at'),
+  createdAt: timestamp('created_at').notNull(),
+}, (t) => [index('invitations_email_idx').on(t.email)]);
+
 export const authSchema = { user, session, account, verification };
-export const schema = { ...authSchema, chats, messages };
+export const schema = { ...authSchema, chats, messages, invitations };
