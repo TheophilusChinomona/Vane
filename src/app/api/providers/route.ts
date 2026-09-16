@@ -1,4 +1,4 @@
-import { requireApiUser } from '@/lib/auth-session';
+import { requireApiUser, requireAdmin } from '@/lib/auth-session';
 import ModelRegistry from '@/lib/models/registry';
 import { NextRequest } from 'next/server';
 
@@ -36,7 +36,7 @@ export const GET = async (req: Request) => {
 };
 
 export const POST = async (req: NextRequest) => {
-  const authenticatedUser = await requireApiUser();
+  const authenticatedUser = await requireAdmin();
   if (authenticatedUser instanceof Response) return authenticatedUser;
   try {
     const body = await req.json();

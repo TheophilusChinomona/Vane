@@ -1,4 +1,4 @@
-import { requireApiUser } from '@/lib/auth-session';
+import { requireAdmin } from '@/lib/auth-session';
 import configManager from '@/lib/config';
 import ModelRegistry from '@/lib/models/registry';
 import { NextRequest, NextResponse } from 'next/server';
@@ -10,7 +10,7 @@ type SaveConfigBody = {
 };
 
 export const GET = async (req: NextRequest) => {
-  const authenticatedUser = await requireApiUser();
+  const authenticatedUser = await requireAdmin();
   if (authenticatedUser instanceof Response) return authenticatedUser;
   try {
     const values = configManager.getCurrentConfig();
@@ -46,7 +46,7 @@ export const GET = async (req: NextRequest) => {
 };
 
 export const POST = async (req: NextRequest) => {
-  const authenticatedUser = await requireApiUser();
+  const authenticatedUser = await requireAdmin();
   if (authenticatedUser instanceof Response) return authenticatedUser;
   try {
     const body: SaveConfigBody = await req.json();

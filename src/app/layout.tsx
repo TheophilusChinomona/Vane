@@ -18,5 +18,6 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const session = await getSession();
   const setupComplete = configManager.isSetupComplete();
   const configSections = configManager.getUIConfigSections();
-  return <html className="h-full" lang="en" suppressHydrationWarning><body className={cn('h-full antialiased', montserrat.className)}><ThemeProvider>{!session ? children : setupComplete ? <ChatProvider><Sidebar>{children}</Sidebar><Toaster toastOptions={{ unstyled: true, classNames: { toast: 'bg-light-secondary dark:bg-dark-secondary dark:text-white/70 text-black-70 rounded-lg p-4 flex flex-row items-center space-x-2' } }} /></ChatProvider> : <SetupWizard configSections={configSections} />}</ThemeProvider></body></html>;
+  const isAdmin = (session?.user as { role?: string } | undefined)?.role === 'admin';
+  return <html className="h-full" lang="en" suppressHydrationWarning><body className={cn('h-full antialiased', montserrat.className)}><ThemeProvider>{!session ? children : setupComplete || !isAdmin ? <ChatProvider><Sidebar>{children}</Sidebar><Toaster toastOptions={{ unstyled: true, classNames: { toast: 'bg-light-secondary dark:bg-dark-secondary dark:text-white/70 text-black-70 rounded-lg p-4 flex flex-row items-center space-x-2' } }} /></ChatProvider> : <SetupWizard configSections={configSections} />}</ThemeProvider></body></html>;
 }

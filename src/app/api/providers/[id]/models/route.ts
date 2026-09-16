@@ -1,4 +1,4 @@
-import { requireApiUser } from '@/lib/auth-session';
+import { requireAdmin } from '@/lib/auth-session';
 import ModelRegistry from '@/lib/models/registry';
 import { Model } from '@/lib/models/types';
 import { NextRequest } from 'next/server';
@@ -7,7 +7,7 @@ export const POST = async (
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) => {
-  const authenticatedUser = await requireApiUser();
+  const authenticatedUser = await requireAdmin();
   if (authenticatedUser instanceof Response) return authenticatedUser;
   try {
     const { id } = await params;
@@ -55,7 +55,7 @@ export const DELETE = async (
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) => {
-  const authenticatedUser = await requireApiUser();
+  const authenticatedUser = await requireAdmin();
   if (authenticatedUser instanceof Response) return authenticatedUser;
   try {
     const { id } = await params;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { unauthorizedResponse } from '../src/lib/auth-response';
 import { ownsResource } from '../src/lib/authorization';
-import { shouldPromoteFirstUser } from '../src/lib/auth-role-policy';
+import { isAdminRole, shouldPromoteFirstUser } from '../src/lib/auth-role-policy';
 
 describe('authorization boundaries', () => {
   it('returns 401 for an anonymous API request', async () => {
@@ -21,5 +21,13 @@ describe('first-admin policy', () => {
     expect(shouldPromoteFirstUser(0)).toBe(true);
     expect(shouldPromoteFirstUser(1)).toBe(false);
     expect(shouldPromoteFirstUser(2)).toBe(false);
+  });
+});
+
+describe('instance configuration policy', () => {
+  it('allows only the admin role to manage instance configuration', () => {
+    expect(isAdminRole('admin')).toBe(true);
+    expect(isAdminRole('user')).toBe(false);
+    expect(isAdminRole(undefined)).toBe(false);
   });
 });
