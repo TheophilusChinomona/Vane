@@ -11,6 +11,7 @@ export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: 'pg', schema: authSchema }),
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: process.env.BETTER_AUTH_URL,
+  user: { additionalFields: { role: { type: 'string', required: false, defaultValue: 'user', input: false } } },
   emailAndPassword: { enabled: true },
   hooks: { before: createAuthMiddleware(async (ctx) => {
     if (ctx.path !== '/sign-up/email') return;
