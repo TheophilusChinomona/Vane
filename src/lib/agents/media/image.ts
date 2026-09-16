@@ -9,6 +9,7 @@ import BaseLLM from '@/lib/models/base/llm';
 import z from 'zod';
 import { ChatTurnMessage } from '@/lib/types';
 import formatChatHistoryAsString from '@/lib/utils/formatHistory';
+import { selectImageSearchQuery } from './image-query';
 
 type ImageSearchChainInput = {
   chatHistory: ChatTurnMessage[];
@@ -29,22 +30,28 @@ const searchImages = async (
     query: z.string().describe('The image search query.'),
   });
 
-  const res = await llm.generateObject<typeof schema>({
-    messages: [
-      {
-        role: 'system',
-        content: imageSearchPrompt,
-      },
-      ...imageSearchFewShots,
-      {
-        role: 'user',
-        content: `<conversation>\n${formatChatHistoryAsString(input.chatHistory)}\n</conversation>\n<follow_up>\n${input.query}\n</follow_up>`,
-      },
-    ],
-    schema: schema,
-  });
+  let rewrittenQuery: string | undefined;
+  try {
+    const res = await llm.generateObject<typeof schema>({
+      messages: [
+        {
+          role: 'system',
+          content: imageSearchPrompt,
+        },
+        ...imageSearchFewShots,
+        {
+          role: 'user',
+          content: `<conversation>\n${formatChatHistoryAsString(input.chatHistory)}\n</conversation>\n<follow_up>\n${input.query}\n</follow_up>`,
+        },
+      ],
+      schema: schema,
+    });
+    rewrittenQuery = res.query;
+  } catch (error) {
+    console.warn('Image query rewriting failed; using the original query.', error);
+  }
 
-  const searchRes = await searchSearxng(res.query, {
+  const searchRes = await searchSearxng(selectImageSearchQuery(rewrittenQuery, input.query), {
     engines: ['bing images', 'google images'],
   });
 
